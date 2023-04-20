@@ -15,6 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os
+import multiprocessing as mp
 
 if __name__ == '__main__':
     ################################
@@ -22,11 +23,11 @@ if __name__ == '__main__':
     ################################
 
     # Number of simulations
-    N=10
+    N=1
     # Number of neg. binomial draws/ simulation
     K=20
     # Number of cpu's
-    processes=18
+    processes=int(mp.cpu_count()/2)
     # Number of age groups
     age_stratification_size=10
     # End of simulation
@@ -71,6 +72,10 @@ if __name__ == '__main__':
 
     abs_dir = os.path.dirname(__file__)
     result_folder = '../../results/covid19_DTM/analysis/QALY/long_COVID'
+
+    # Verify that the paths exist and if not, generate them
+    if not os.path.exists(os.path.join(abs_dir,result_folder)):
+        os.makedirs(os.path.join(abs_dir,result_folder))
 
     states = ['QALY_NH', 'QALY_C', 'QALY_ICU','QALY_D']
     titles = ['Non-hospitalised', 'Cohort', 'ICU','Deaths']

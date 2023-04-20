@@ -476,7 +476,7 @@ def lost_QALYs(out,AD_non_hospitalised=False):
     for idx,(hospitalisation,age,draw) in enumerate(QALY_long_COVID_per_age.index):
         QALY_long_COVID_per_age[idx] = np.random.normal(average_QALY_losses['mean'][hospitalisation,age],
                                                         average_QALY_losses['sd'][hospitalisation,age])
-        
+ 
     # bin data
     QALY_long_COVID_per_age_group = bin_data(QALY_long_COVID_per_age)
 
@@ -488,7 +488,6 @@ def lost_QALYs(out,AD_non_hospitalised=False):
         for draw in np.random.randint(QALY_draws,size=out_enlarged.dims['draws']):
             mean_QALY_losses.append(QALY_long_COVID_per_age_group.loc[(hospitalisation,slice(None),draw)])
         mean_QALY_losses = np.array(mean_QALY_losses)[:,np.newaxis,:,np.newaxis]
-
         out_enlarged[f'QALY_{hospitalisation_abbreviation}'] = out_enlarged[hospitalisation_abbreviation+'_R_in'].cumsum(dim='date')*mean_QALY_losses
 
     # Calculate QALY losses due COVID death
