@@ -23,7 +23,7 @@ if __name__ == '__main__':
     ################################
 
     # Number of simulations
-    N=1
+    N=10
     # Number of neg. binomial draws/ simulation
     K=20
     # Number of cpu's

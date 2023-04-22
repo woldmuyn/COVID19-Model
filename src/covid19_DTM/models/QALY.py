@@ -4,6 +4,7 @@ import pandas as pd
 from covid19_DTM.data.utils import convert_age_stratified_property
 from scipy.optimize import minimize
 from scipy.integrate import quad
+from scipy.stats import norm
 from covid19_DTM.data.utils import construct_initN
 import xarray as xr
 
@@ -456,8 +457,11 @@ def lost_QALYs(out,AD_non_hospitalised=False):
     
     """
     # Enlarge out to contain at least 100 draws
-    sim_draws = out.dims['draws']
-    out_enlarged = xr.concat([out]*int(np.ceil(100/sim_draws)), dim='draws')
+    if 'draws' not in out.dims:
+        out_enlarged = out.expand_dims(dim={'draws':100})
+    else:
+        sim_draws = out.dims['draws']
+        out_enlarged = xr.concat([out]*int(np.ceil(100/sim_draws)), dim='draws')
 
     if AD_non_hospitalised:
         hospitalisation_groups = ['Non-hospitalised','Cohort','ICU']
@@ -466,27 +470,26 @@ def lost_QALYs(out,AD_non_hospitalised=False):
 
     # Load average QALY losses
     abs_dir = os.path.dirname(__file__)
-    average_QALY_losses = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/QALY_model/long_COVID/average_QALY_losses.csv'),index_col=[0,1])
-    ages = average_QALY_losses.index.get_level_values('age').unique()
-
-    # Sample average QALY losses per age
-    QALY_draws = 200
-    multi_index = pd.MultiIndex.from_product([hospitalisation_groups,ages,np.arange(QALY_draws)],names=['hospitalisation','age','draw'])
-    QALY_long_COVID_per_age = pd.Series(index = multi_index, dtype=float)
-    for idx,(hospitalisation,age,draw) in enumerate(QALY_long_COVID_per_age.index):
-        QALY_long_COVID_per_age[idx] = np.random.normal(average_QALY_losses['mean'][hospitalisation,age],
-                                                        average_QALY_losses['sd'][hospitalisation,age])
- 
-    # bin data
-    QALY_long_COVID_per_age_group = bin_data(QALY_long_COVID_per_age)
+    average_QALY_losses = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/QALY_model/long_COVID/average_QALY_losses_per_age_group.csv'),index_col=[0,1])
+    age_groups = average_QALY_losses.index.get_level_values('age_group').unique()
 
     # Multiply average QALY loss with number of paients
     hospitalisation_abbreviations = ['NH','C','ICU']
     for hospitalisation,hospitalisation_abbreviation in zip(hospitalisation_groups,hospitalisation_abbreviations):
 
         mean_QALY_losses = []
-        for draw in np.random.randint(QALY_draws,size=out_enlarged.dims['draws']):
-            mean_QALY_losses.append(QALY_long_COVID_per_age_group.loc[(hospitalisation,slice(None),draw)])
+        for draw in range(out_enlarged.dims['draws']):
+            sample = []
+            sample_0 = np.random.normal(average_QALY_losses['mean'][hospitalisation,age_groups[0]],
+                                        average_QALY_losses['sd'][hospitalisation,age_groups[0]])
+            sample.append(sample_0)
+            q = norm.cdf(sample_0,loc=average_QALY_losses['mean'][hospitalisation,age_groups[0]],
+                         scale = average_QALY_losses['sd'][hospitalisation,age_groups[0]])
+            
+            for age_group in age_groups[1:]:
+                sample.append(norm.ppf(q,loc=average_QALY_losses['mean'][hospitalisation,age_group],
+                                       scale=average_QALY_losses['sd'][hospitalisation,age_group]))
+            mean_QALY_losses.append(sample)
         mean_QALY_losses = np.array(mean_QALY_losses)[:,np.newaxis,:,np.newaxis]
         out_enlarged[f'QALY_{hospitalisation_abbreviation}'] = out_enlarged[hospitalisation_abbreviation+'_R_in'].cumsum(dim='date')*mean_QALY_losses
 
