@@ -34,7 +34,7 @@ from covid19_DTM.data.utils import construct_initN
 from covid19_DTM.models.utils import output_to_visuals
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19_DTM.visualization.output import _apply_tick_locator 
-from covid19_DTM.models.QALY import life_table_QALY_model, lost_QALYs_hospital_care
+from covid19_DTM.models.QALY import life_table_QALY_model, lost_QALYs_hospital_care, bin_data
 
 import copy
 import emcee
@@ -300,7 +300,7 @@ fig.savefig(os.path.join(abs_dir,fig_result_folder,'QoL_Belgium_fit.png'))
 ## Average QALY loss ##
 #######################
 
-print('\n(4) Calculate average QALY loss for each age\n')
+print('\n(4.1) Calculate average QALY loss for each age\n')
 
 prevalence_func = lambda t,tau, p_AD: p_AD + (1-p_AD)*np.exp(-t/tau)
 
@@ -313,7 +313,7 @@ draws = 200
 
 # Pre-allocate new multi index series with index=hospitalisation,age,draw
 multi_index = pd.MultiIndex.from_product([hospitalisation_groups+['Non-hospitalised (no AD)'],np.arange(draws),LE_table.index.values],names=['hospitalisation','draw','age'])
-average_QALY_losses = pd.Series(index = multi_index, dtype=float)
+average_QALY_losses_per_age = pd.Series(index = multi_index, dtype=float)
 
 # Calculate average QALY loss for each age 'draws' times
 for idx,(hospitalisation,draw,age) in enumerate(tqdm(multi_index)):
@@ -337,35 +337,56 @@ for idx,(hospitalisation,draw,age) in enumerate(tqdm(multi_index)):
     QoL_after = QoL_Belgium_func(age)-beta
     # integrate QALY_loss_func from 0 to LE  
     QALY_loss = quad(QALY_loss_func,0,LE,args=(tau,p_AD,age,QoL_after))[0]/12 
-    average_QALY_losses[idx] = QALY_loss
+    average_QALY_losses_per_age[idx] = QALY_loss
+
+print('\n(4.2) Bin average QALY loss per age to age groups\n')
+
+# bin data
+average_QALY_losses_per_age_group = bin_data(average_QALY_losses_per_age)
+
+print('\n(5) Saving results\n')
 
 # save result to dataframe
 def get_lower(x):
     return np.quantile(x,0.025)
 def get_upper(x):
     return np.quantile(x,0.975)
-def get_upper(x):
-    return np.quantile(x,0.975)
 def get_sd(x):
     return np.std(x)
 
+# average QALY per age
 multi_index = pd.MultiIndex.from_product([hospitalisation_groups+['Non-hospitalised (no AD)'],LE_table.index.values],names=['hospitalisation','age'])
-average_QALY_losses_summary = pd.DataFrame(index = multi_index, columns=['mean','sd','lower','upper'], dtype=float)
-for hospitalisation in hospitalisation_groups+['Non-hospitalised (no AD)']:
-    average_QALY_losses_summary['mean'][hospitalisation] = average_QALY_losses[hospitalisation].groupby(['age']).mean()
-    average_QALY_losses_summary['sd'][hospitalisation] = average_QALY_losses[hospitalisation].groupby(['age']).apply(get_sd)
-    average_QALY_losses_summary['lower'][hospitalisation] = average_QALY_losses[hospitalisation].groupby(['age']).apply(get_lower)
-    average_QALY_losses_summary['upper'][hospitalisation] = average_QALY_losses[hospitalisation].groupby(['age']).apply(get_upper)
+average_QALY_losses_per_age_summary = pd.DataFrame(index = multi_index, columns=['mean','sd','lower','upper'], dtype=float)
 
-average_QALY_losses_summary.to_csv(os.path.join(abs_dir,data_result_folder,'average_QALY_losses.csv'))
+for hospitalisation in hospitalisation_groups+['Non-hospitalised (no AD)']:
+    average_QALY_losses_per_age_summary['mean'][hospitalisation] = average_QALY_losses_per_age[hospitalisation].groupby(['age']).mean()
+    average_QALY_losses_per_age_summary['sd'][hospitalisation] = average_QALY_losses_per_age[hospitalisation].groupby(['age']).apply(get_sd)
+    average_QALY_losses_per_age_summary['lower'][hospitalisation] = average_QALY_losses_per_age[hospitalisation].groupby(['age']).apply(get_lower)
+    average_QALY_losses_per_age_summary['upper'][hospitalisation] = average_QALY_losses_per_age[hospitalisation].groupby(['age']).apply(get_upper)
+
+average_QALY_losses_per_age_summary.to_csv(os.path.join(abs_dir,data_result_folder,'average_QALY_losses_per_age.csv'))
+
+# average QALY per age group
+multi_index = pd.MultiIndex.from_product([hospitalisation_groups+['Non-hospitalised (no AD)'],average_QALY_losses_per_age_group.index.get_level_values('age_group').unique()],names=['hospitalisation','age_group'])
+average_QALY_losses_per_age_group_summary = pd.DataFrame(index = multi_index, columns=['mean','sd','lower','upper'], dtype=float)
+
+for hospitalisation in hospitalisation_groups+['Non-hospitalised (no AD)']:
+    average_QALY_losses_per_age_group_summary['mean'][hospitalisation] = average_QALY_losses_per_age_group[hospitalisation].groupby(['age_group']).mean()
+    average_QALY_losses_per_age_group_summary['sd'][hospitalisation] = average_QALY_losses_per_age_group[hospitalisation].groupby(['age_group']).apply(get_sd)
+    average_QALY_losses_per_age_group_summary['lower'][hospitalisation] = average_QALY_losses_per_age_group[hospitalisation].groupby(['age_group']).apply(get_lower)
+    average_QALY_losses_per_age_group_summary['upper'][hospitalisation] = average_QALY_losses_per_age_group[hospitalisation].groupby(['age_group']).apply(get_upper)
+
+average_QALY_losses_per_age_group_summary.to_csv(os.path.join(abs_dir,data_result_folder,'average_QALY_losses_per_age_group.csv'))
+
+print('\n(5) Visualise results\n')
 
 # Visualise results
 fig,axs = plt.subplots(2,2,sharex=True,sharey=True,figsize=(10,10))
 axs = axs.reshape(-1)
 for ax,hospitalisation in zip(axs,['Non-hospitalised (no AD)']+hospitalisation_groups):
-    mean = average_QALY_losses_summary.loc[hospitalisation]['mean']
-    lower = average_QALY_losses_summary.loc[hospitalisation]['lower']
-    upper = average_QALY_losses_summary.loc[hospitalisation]['upper']
+    mean = average_QALY_losses_per_age_summary.loc[hospitalisation]['mean']
+    lower = average_QALY_losses_per_age_summary.loc[hospitalisation]['lower']
+    upper = average_QALY_losses_per_age_summary.loc[hospitalisation]['upper']
     ax.plot(LE_table.index.values,mean,color_dict[hospitalisation],label=f'{hospitalisation}')
     ax.fill_between(LE_table.index.values,lower,upper,alpha=0.20, color = color_dict[hospitalisation])
     ax.set_title(hospitalisation)
@@ -377,7 +398,7 @@ axs[0].set_ylabel('Average QALY loss')
 axs[-2].set_ylabel('Average QALY loss')
 
 fig.suptitle('Average QALY loss related to long-COVID')
-fig.savefig(os.path.join(abs_dir,fig_result_folder,'average_QALY_losses.png'))
+fig.savefig(os.path.join(abs_dir,fig_result_folder,'average_QALY_losses_per_age.png'))
 
 # QALY losses due COVID death
 QALY_D_per_age = Life_table.compute_QALY_D_x()
