@@ -103,6 +103,9 @@ A folder containing all raw simulations used for the RESTORE reports, the report
 + `hec03946-sup-0001-supplementary material.docx` contains supply-side cost-effectiveness thresholds and elasticities per disease group and age for the Netherlands. The data was used to estimate the cost per QALY gained per disease group. It was subsequently corrected for inflation, combined with costs of medical treatment and  and placed in data/covid19_DTM/interim folder under the name: 'hospital_data_qaly.xlsx'. Suplementary material of :Stadhouders, N., Koolman, X., Dijk, C., Jeurissen, P., and Adang, E. (2019). The marginal benefits of healthcare spending in the Netherlands: Estimating cost-effectiveness thresholds using a translog production function. Health Economics, 28(11):1331–1344.
 + `De_Wilder_QoL_scores.xlsx` contains two datasheets: 1) QoL_scores, 2) prevalence_comorbidities. The QoL_scores sheet contains the quality-of-life (QoL) scores per number of chronical diseases in the Belgian population. The prevalence_comorbidities sheet contains a calculation of the chronical disease distribution of the Belgian population. Data obtained from Lisa Van Wilder.
 
+##### Long-COVID
++ `Long_COVID_prevalence.csv` contains prevalence data up to 1 year after COVID-19 infection for different severity groups (source: https://doi.org/10.1093/cid/ciab759) 
+
 #### VOCs
 
 + `sequencing_501YV1_501YV2_501YV3.csv` contains the total number of sequenced samples and the number of samples of variants 501Y.V1 (British), 501Y.V2 (South African) and 501Y.V3 (Brazilian). Data available from week 49 of 2020 until week 14 of 2021. Data download from Tom Wenseleer's Git (https://github.com/tomwenseleers/newcovid_belgium); folder `~/data/2021_04_16/sequencing_501YV1_501YV2_501YV3.csv`.
@@ -154,6 +157,9 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 ##### Postponement of non-COVID-19 care
 + `costs_hospital_belgium.csv` I don't know where this comes from, this must be checked.
 + `MZG 20XX.xlsx` contains for every patient hospitalized in the Ghent University Hospital during year 20XX the 1) Type of hospitalization, 2) Age of the patient (binned per 5 years age), 3) Date of hospitalization, date of hospital discharge, 4) Pathology (MDC classification). These data are confidential, contact tijs.alleman@ugent.be if their use is necessary.
+
+##### Long-COVID
++ `average_QALY_losses_per_age_group.csv` / `average_QALY_losses_per_age.csv` contains mean, sd, lower, upper average QALY losses per age (group) due to long-COVID. 
 
 #### Sciensano
 
