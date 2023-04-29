@@ -152,7 +152,7 @@ class life_table_QALY_model():
         """
 
         #calculate q_x
-        q_x = 1- np.exp(-SMR*self.mu_x)
+        q_x = (1- np.exp(-SMR*self.mu_x)).values
         q_x[-1] = 1
 
         l_x = np.zeros(len(q_x))

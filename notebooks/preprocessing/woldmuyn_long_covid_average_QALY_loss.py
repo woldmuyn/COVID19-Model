@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import xarray as xr
 import matplotlib.cm as cm
+from matplotlib import font_manager
 from scipy.integrate import quad
 from scipy.optimize import curve_fit
 from scipy import stats
@@ -55,7 +56,10 @@ rel_dir = '../../data/covid19_DTM/raw/QALY_model/long_COVID/'
 
 severity_groups = ['Mild','Moderate','Severe-Critical']
 hospitalisation_groups = ['Non-hospitalised','Cohort','ICU']
-color_dict = {'Mild':'g','Non-hospitalised':'g','Non-hospitalised (no AD)':'g','Moderate':'y','Cohort':'y','Severe-Critical':'r','ICU':'r'}
+color_dict = {'Mild':'green','Non-hospitalised':'green','Non-hospitalised (no AD)':'green','Moderate':'orange','Cohort':'orange','Severe-Critical':'red','ICU':'red'}
+colors = ['black','green','orange','red']
+palette = cm.get_cmap('tab10').colors
+palette_colors = {'black':palette[7],'green':palette[2],'orange':palette[1],'red':palette[3]}
 
 # raw prevalence data per severity group
 prevalence_data_per_severity_group = pd.read_csv(os.path.join(abs_dir,rel_dir,'Long_COVID_prevalence.csv'),index_col=[0,1])
@@ -96,6 +100,13 @@ QoL_difference_data = pd.DataFrame(data=np.array([[mean_QoL_decrease_non_hospita
 # ------- #
 # results #
 # ------- #
+
+label_font = font_manager.FontProperties(family='CMU Sans Serif',
+                                   style='normal', 
+                                   size=10)
+legend_font = font_manager.FontProperties(family='CMU Sans Serif',
+                                   style='normal', 
+                                   size=8)
 
 data_result_folder = '../../data/covid19_DTM/interim/QALY_model/long_COVID/'
 fig_result_folder = '../../results/covid19_DTM/preprocessing/QALY_model/long_COVID/'
@@ -157,11 +168,11 @@ time = np.linspace(0, t_max, t_steps)
 
 prevalence_func = lambda t,tau, p_AD: p_AD + (1-p_AD)*np.exp(-t/tau)
 
-for scenario,(fig,ax) in zip(('AD','no_AD'),(plt.subplots(),plt.subplots())):
+for scenario,(fig,ax) in zip(('AD','no_AD'),(plt.subplots(figsize=(3,3)),plt.subplots(figsize=(3,3)))):
     for hospitalisation in hospitalisation_groups:
         x = prevalence_data_per_hospitalisation_group.loc[hospitalisation].index.values
         y = prevalence_data_per_hospitalisation_group.loc[hospitalisation].values.squeeze()
-        ax.plot(x,y,color_dict[hospitalisation]+'o',label=f'{hospitalisation} data')
+        ax.plot(x,y,color=palette_colors[color_dict[hospitalisation]],marker='o',linestyle='None',label=f'{hospitalisation} data',markersize=3)
 
         if hospitalisation =='Non-hospitalised' and scenario == 'no_AD':
             tau = taus['Non-hospitalised (no AD)']
@@ -169,15 +180,17 @@ for scenario,(fig,ax) in zip(('AD','no_AD'),(plt.subplots(),plt.subplots())):
         else:
             tau = taus[hospitalisation]
             p_AD = p_ADs[hospitalisation]
-        ax.plot(time,prevalence_func(time,tau,p_AD),color_dict[hospitalisation]+'--',alpha=0.7,
-            label=f'{hospitalisation} fit\n'rf'($\tau$:{tau:.2f},'' $f_{AD}$'f':{p_AD:.2f})')
+        ax.plot(time,prevalence_func(time,tau,p_AD),color=palette_colors[color_dict[hospitalisation]],linestyle='--',alpha=0.7, linewidth=2,
+            label=f'{hospitalisation} fit')
     
-    ax.set_xlabel('Months after infection')
-    ax.set_ylabel('Prevalence')
-    ax.set_title('Prevalence of long-COVID symptoms')
-    ax.legend(prop={'size': 12})
+    ax.set_xlabel('Months after infection',font=label_font)
+    ax.set_ylabel('Prevalence',font=label_font)
+    ax.set_ylim([0, 1.1])
+    ax.legend(prop=legend_font)
+    ax.tick_params(axis='both', which='major', labelsize=8)
     ax.grid(False)
-    fig.savefig(os.path.join(abs_dir,fig_result_folder,f'prevalence_first_fit_{scenario}'))
+    fig.tight_layout()
+    fig.savefig(os.path.join(abs_dir,fig_result_folder,f'prevalence_first_fit_{scenario}'),dpi=600,bbox_inches='tight')
 
 print('\n(2.2) MCMC to estimate f_AD\n')
 # objective functions for MCMC
@@ -240,14 +253,13 @@ for hospitalisation in hospitalisation_groups:
     p_AD_summary['lower'][hospitalisation] = np.quantile(flat_samples,0.025,axis=0)
     p_AD_summary['upper'][hospitalisation] = np.quantile(flat_samples,0.975,axis=0)
 
-# visualise MCMC results    
-fig,axs = plt.subplots(2,2,figsize=(10,10),sharex=True,sharey=True)
-axs = axs.reshape(-1)
-for ax,hospitalisation in zip(axs[:-1],hospitalisation_groups):
+# visualise MCMC results
+fig,axs = plt.subplots(1,3,figsize=(6,2.5))
+axs=axs.reshape(-1)
+for ax,hospitalisation in zip(axs,hospitalisation_groups):
     x = prevalence_data_per_hospitalisation_group.loc[hospitalisation].index.values
     y = prevalence_data_per_hospitalisation_group.loc[hospitalisation].values.squeeze()
-    ax.plot(x,y,color_dict[hospitalisation]+'o',label=f'{hospitalisation} data')
-    axs[-1].plot(x,y,color_dict[hospitalisation]+'o',label=f'{hospitalisation} data')
+    ax.plot(x,y,color=palette_colors[color_dict[hospitalisation]],marker='o',linestyle='None',label=f'{hospitalisation} data',markersize=1)
     
     tau = taus[hospitalisation]
     prevalences = []
@@ -258,21 +270,17 @@ for ax,hospitalisation in zip(axs[:-1],hospitalisation_groups):
     lower = np.quantile(prevalences,0.025,axis=0)
     upper = np.quantile(prevalences,0.975,axis=0)
 
-    ax.plot(time,mean,color_dict[hospitalisation]+'--',alpha=0.7)
-    axs[-1].plot(time,mean,color_dict[hospitalisation]+'--',alpha=0.7,label=f'{hospitalisation} mean fit')
-    ax.fill_between(time,lower, upper,alpha=0.2, color=color_dict[hospitalisation])
-    ax.set_title(hospitalisation)
+    ax.plot(time,mean,color=palette_colors[color_dict[hospitalisation]],linestyle='--',alpha=0.7,linewidth=1)
+    ax.fill_between(time,lower, upper,alpha=0.2, color=palette_colors[color_dict[hospitalisation]])
     ax.grid(False)
+    ax.set_title(hospitalisation,font=label_font)
+    ax.set_ylim([0, 1.1])
+    ax.tick_params(axis='both', which='major', labelsize=8)
+    ax.set_xlabel('Months after infection',font=label_font)
+axs[0].set_ylabel('Prevalence',font=label_font)
 
-axs[-1].set_xlabel('Months after infection')
-axs[-2].set_xlabel('Months after infection')
-axs[0].set_ylabel('Prevalence')
-axs[-2].set_ylabel('Prevalence')
-axs[-1].legend(prop={'size': 12})
-axs[-1].grid(False)
-
-fig.suptitle('Prevalence of long-COVID symptoms')
-fig.savefig(os.path.join(abs_dir,fig_result_folder,'prevalence_MCMC_fit.png'))
+fig.tight_layout()
+fig.savefig(os.path.join(abs_dir,fig_result_folder,f'prevalence_MCMC_fit.png'),dpi=600,bbox_inches='tight')
 
 #########
 ## QoL ##
@@ -283,18 +291,21 @@ print('\n(3) Fit exponential curve to QoL scores\n')
 QoL_Belgium_func = Life_table.QoL_Belgium_func
 
 # visualise fit
-fig,ax = plt.subplots()
+fig,ax = plt.subplots(figsize=(5,3))
 for index in QoL_Belgium.index:
     left = index.left
     right = index.right
     w = right-left
     ax.bar(left+w/2,QoL_Belgium[index],w-1,color='grey',alpha=0.5,label='data')
-ax.plot(QoL_Belgium_func(LE_table.index.values),label='fit',color='b')
-ax.set_xlabel('Age')
-ax.set_ylabel('QoL Belgium')
+ax.plot(QoL_Belgium_func(LE_table.index.values),label='fit',color='black')
+ax.set_xlabel('Age',font=label_font)
+ax.set_ylabel('QoL Belgium',font=label_font)
+ax.tick_params(axis='both', which='major', labelsize=8)
 ax.set_ylim([0.5, 0.9])
 ax.grid(False)
-fig.savefig(os.path.join(abs_dir,fig_result_folder,'QoL_Belgium_fit.png'))
+fig.tight_layout()
+fig.show()
+fig.savefig(os.path.join(abs_dir,fig_result_folder,'QoL_Belgium_fit.png'),dpi=600,bbox_inches='tight')
 
 #######################
 ## Average QALY loss ##
@@ -381,29 +392,30 @@ average_QALY_losses_per_age_group_summary.to_csv(os.path.join(abs_dir,data_resul
 print('\n(5) Visualise results\n')
 
 # Visualise results
-fig,axs = plt.subplots(2,2,sharex=True,sharey=True,figsize=(10,10))
-axs = axs.reshape(-1)
-for ax,hospitalisation in zip(axs,['Non-hospitalised (no AD)']+hospitalisation_groups):
+fig,axs = plt.subplots(1,3,figsize=(6,2.5),sharey=True,sharex=True)
+for ax,hospitalisation in zip(axs,hospitalisation_groups):
     mean = average_QALY_losses_per_age_summary.loc[hospitalisation]['mean']
     lower = average_QALY_losses_per_age_summary.loc[hospitalisation]['lower']
     upper = average_QALY_losses_per_age_summary.loc[hospitalisation]['upper']
-    ax.plot(LE_table.index.values,mean,color_dict[hospitalisation],label=f'{hospitalisation}')
-    ax.fill_between(LE_table.index.values,lower,upper,alpha=0.20, color = color_dict[hospitalisation])
-    ax.set_title(hospitalisation)
+    ax.plot(LE_table.index.values,mean,color=palette_colors[color_dict[hospitalisation]],linestyle='--',label=f'{hospitalisation}',linewidth=1)
+    ax.fill_between(LE_table.index.values,lower,upper,alpha=0.20, color=palette_colors[color_dict[hospitalisation]])
+    
     ax.grid(False)
+    ax.set_xlabel('Age when infected',font=label_font)
+    ax.tick_params(axis='both', which='major', labelsize=8)
+    ax.set_title(hospitalisation,font=label_font)
 
-axs[-1].set_xlabel('Age when infected')
-axs[-2].set_xlabel('Age when infected')
-axs[0].set_ylabel('Average QALY loss')
-axs[-2].set_ylabel('Average QALY loss')
-
-fig.suptitle('Average QALY loss related to long-COVID')
-fig.savefig(os.path.join(abs_dir,fig_result_folder,'average_QALY_losses_per_age.png'))
+axs[0].set_ylabel('Average QALY loss',font=label_font)
+fig.tight_layout()
+fig.savefig(os.path.join(abs_dir,fig_result_folder,f'average_QALY_losses_per_age.png'),dpi=600,bbox_inches='tight')
 
 # QALY losses due COVID death
 QALY_D_per_age = Life_table.compute_QALY_D_x()
-fig,ax = plt.subplots(figsize=(12,4))
-ax.plot(QALY_D_per_age,'b')
-ax.set(xlabel='age', ylabel=r'$QALY_D$')
+fig,ax = plt.subplots(figsize=(5,3))
+ax.plot(QALY_D_per_age,color=palette_colors['black'])
 ax.grid(False)
-fig.savefig(os.path.join(abs_dir,fig_result_folder,'QALY_D.png'))
+ax.set_xlabel('age',font=label_font)
+ax.set_ylabel(r'$QALY_D$',font=label_font)
+ax.tick_params(axis='both', which='major', labelsize=8)
+fig.tight_layout()
+fig.savefig(os.path.join(abs_dir,fig_result_folder,'QALY_D.png'),dpi=600,bbox_inches='tight')
