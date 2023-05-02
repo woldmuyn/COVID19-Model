@@ -176,7 +176,7 @@ class life_table_QALY_model():
             LE_x.index.name = 'x'
         return LE_x
     
-    def compute_QALY_D_x(self):
+    def compute_QALY_D_x(self,SMR=1,r=0):
         """ A function to compute the QALY loss upon death at age x
 
         Parameters
@@ -185,18 +185,21 @@ class life_table_QALY_model():
         SMR : float
             "Standardized mortality ratio" (SMR) is the ratio of observed deaths in a study group to expected deaths in the general population.
             An SMR of 1 corresponds to an average life expectancy, an increase in SMR shortens the expected lifespan.
+        r : float
+            discount rate to discount QALYs to occur in the future
 
         Returns
         -------
 
         QALY_D_x : pd.Series
         """
+        func_to_integrate = lambda i,x,r: self.QoL_Belgium_func(i)/(1+r)**(i-x)
 
-        LE_table = self.life_expectancy()    
-        QALY_D_x = pd.Series(index=LE_table.index.rename('age'),dtype='float')
-        for age in QALY_D_x.index:
-            QALY_D_x[age] = quad(self.QoL_Belgium_func,age,age+LE_table[age])[0]
-        return QALY_D_x
+        LE_table = self.life_expectancy(SMR)    
+        QALY_D = pd.Series(index=LE_table.index.rename('age'),dtype='float')
+        for age in QALY_D.index:
+            QALY_D[age] = quad(func_to_integrate,age,age+LE_table[age],args=(age,r))[0]
+        return QALY_D
     
     def compute_QALE_x(self, population='BE', SMR_method='convergent'):
         """ A function to compute the quality-adjusted life expectancy at age x

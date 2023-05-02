@@ -253,6 +253,8 @@ for hospitalisation in hospitalisation_groups:
     p_AD_summary['lower'][hospitalisation] = np.quantile(flat_samples,0.025,axis=0)
     p_AD_summary['upper'][hospitalisation] = np.quantile(flat_samples,0.975,axis=0)
 
+print(p_AD_summary)
+
 # visualise MCMC results
 fig,axs = plt.subplots(1,3,figsize=(6,2.5))
 axs=axs.reshape(-1)
@@ -304,7 +306,6 @@ ax.tick_params(axis='both', which='major', labelsize=8)
 ax.set_ylim([0.5, 0.9])
 ax.grid(False)
 fig.tight_layout()
-fig.show()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'QoL_Belgium_fit.png'),dpi=600,bbox_inches='tight')
 
 #######################
@@ -410,12 +411,23 @@ fig.tight_layout()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,f'average_QALY_losses_per_age.png'),dpi=600,bbox_inches='tight')
 
 # QALY losses due COVID death
-QALY_D_per_age = Life_table.compute_QALY_D_x()
 fig,ax = plt.subplots(figsize=(5,3))
-ax.plot(QALY_D_per_age,color=palette_colors['black'])
+ax.plot(Life_table.compute_QALY_D_x(r=0),color=palette_colors['black'],label=r'$r=0\%$')
+ax.plot(Life_table.compute_QALY_D_x(r=0.03),color=palette_colors['black'],linestyle=':',label=r'$r=3\%$')
 ax.grid(False)
 ax.set_xlabel('age',font=label_font)
 ax.set_ylabel(r'$QALY_D$',font=label_font)
 ax.tick_params(axis='both', which='major', labelsize=8)
+ax.legend(prop=legend_font)
 fig.tight_layout()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'QALY_D.png'),dpi=600,bbox_inches='tight')
+
+# Life expectancy
+fig,ax = plt.subplots(figsize=(5,3))
+ax.plot(LE_table,'black')
+ax.grid(False)
+ax.set_ylabel('Life expectancy',font=label_font)
+ax.set_xlabel('age',font=label_font)
+ax.tick_params(axis='both', which='major', labelsize=8)
+fig.tight_layout()
+fig.savefig(os.path.join(os.getcwd(),'../../results/covid19_DTM/preprocessing/QALY_model/long_COVID/','LE.png'),dpi=600,bbox_inches='tight')
