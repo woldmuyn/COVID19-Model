@@ -1,0 +1,1 @@
+{"start_calibration": "2020-08-01", "end_calibration": "2021-02-01", "n_chains": 50, "labels": ["$K_p$", "$K_i$", "$\\alpha$", "$\\gamma$", "covid_capacity"], "parameters": ["Kp", "Ki", "alpha", "gamma", "covid_capacity"], "starting_estimate": [0.04193125514535851, 0.012525355788708612, 0.00030566270141015826, 0.02333776895868472, 433.34202617628796]}

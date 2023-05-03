@@ -1,0 +1,1 @@
+{"start_calibration": "2020-08-01", "end_calibration": "2021-02-01", "n_chains": 40, "labels": ["$K_p$", "$K_i$", "$\\alpha$", "$\\gamma$"], "parameters": ["Kp", "Ki", "alpha", "gamma"], "starting_estimate": [0.0011805654328176539, 0.003974282734289065, 1.9556792559619622e-05, 0.0007302498626833933]}
