@@ -29,7 +29,7 @@ from tqdm import tqdm
 print('\n(1) Loading intermediate dataset\n')
 
 # Name and location of intermediate dataset
-abs_dir = os.getcwd()
+abs_dir = os.path.dirname(__file__)
 rel_dir = '../../data/covid19_DTM/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2016_2021.csv'
 # Name and location of saved dataframe
 result_folder =  '../../data/covid19_DTM/interim/QALY_model/postponement_non_covid_care/UZG/2020_2021_normalized.csv'

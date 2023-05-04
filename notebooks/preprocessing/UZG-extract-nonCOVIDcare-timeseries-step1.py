@@ -26,7 +26,7 @@ from tqdm import tqdm
 print('\n(1) Loading data\n')
 
 # Names and location of datasets
-abs_dir = os.getcwd()
+abs_dir = os.path.dirname(__file__)
 rel_dir = '../../data/covid19_DTM/raw/QALY_model/postponement_non_covid_care/UZG/'
 name_raw_list=['MZG_2016.xlsx', 'MZG_2017.xlsx','MZG_2018.xlsx', 'MZG_2019.xlsx', 'MZG_2020.xlsx', 'MZG_2021.xlsx']
 # Construct list of locations
