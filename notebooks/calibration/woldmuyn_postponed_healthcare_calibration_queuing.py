@@ -49,7 +49,7 @@ parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iteratio
 parser.add_argument("-ID", "--identifier", help="Name in output files.", default = 'queuing_model_test')
 parser.add_argument("-MDC_sim", "--MDC_sim", help="MDC classes to plot, setting to 'all' equals all MDC keys. \ndefault=['01','05','06','08']",default=['03','04','05','06'])
 parser.add_argument("-MDC_plot", "--MDC_plot", help="MDC classes to plot, setting to 'all' equals all MDC keys. \ndefault=['01','05','06','08']",default=['03','04','05'])
-parser.add_argument("-ewm", "--ewm", help="span of ewm to apply to baseline. \ndefault=0",default=0)
+parser.add_argument("-ewm", "--ewm", help="span of ewm to apply to baseline. \ndefault=0",default=14)
 args = parser.parse_args()
 
 # Backend
@@ -96,7 +96,6 @@ MDC_keys = list(MDC_dict.keys())
 
 # MDC classes to model
 MDC_sim = np.array(list(MDC_keys))
-MDC_sim = np.append(MDC_sim,'covid')
 
 # MDC classes to plot
 if args.MDC_sim == 'all':
@@ -118,7 +117,6 @@ else:
 
 MDC_plot = sorted(MDC_plot)
 MDC_sim = sorted(MDC_sim)
-MDC_sim = np.append(MDC_sim,'covid')
 
 ##############################
 ## Define results locations ##
@@ -200,7 +198,6 @@ file_name = 'MZG_residence_times.csv'
 types_dict = {'APR_MDC_key': str, 'age_group': str, 'stay_type':str}
 residence_times = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1,2],dtype=types_dict).squeeze()
 mean_residence_times = residence_times.groupby(by=['APR_MDC_key']).mean()
-mean_residence_times['covid']=10
 
 ##################
 ## Define model ##
@@ -217,8 +214,8 @@ class Queuing_model(ODEModel):
     dimension_names = ['MDC']
     
     @staticmethod
-    def integrate(t, W, H, R, NR, X, A, X_tot, f_UZG, covid_H, gamma, epsilon, sigma):
-        X_new = ((X_tot-f_UZG*covid_H)-sum(H - (1/gamma*H))) * (sigma*(A+W))/sum(sigma*(A+W))
+    def integrate(t, W, H, R, NR, X, X_tot, f_UZG, covid_H, A, gamma, epsilon, sigma):
+        X_new = (X_tot-f_UZG*covid_H-sum(H - (1/gamma*H))) * (sigma*(A+W))/sum(sigma*(A+W))
 
         W_to_H = np.where(W>X_new,X_new,W)
         W_to_NR = epsilon*(W-W_to_H)
@@ -240,29 +237,42 @@ class Queuing_model(ODEModel):
 from functools import lru_cache
 
 class get_A():
-    def __init__(self, baseline,mean_residence_times,df_covid_H_in):
+    def __init__(self, baseline,mean_residence_times):
         self.baseline = baseline
         self.mean_residence_times = mean_residence_times
-        self.df_covid_H_in = df_covid_H_in
     
-    def A_wrapper_func(self, t, states, param, MDC,f_UZG):
-        return self.__call__(t,MDC,f_UZG)
+    def A_wrapper_func(self, t, states, param, MDC):
+        return self.__call__(t,MDC)
     
     #@lru_cache()
-    def __call__(self, t, MDC,f_UZG):
-        covid_idx = int(np.where(MDC=='covid')[0])
-        MDC_without_covid = np.delete(MDC,covid_idx)
+    def __call__(self, t, MDC):
 
         t_string = t.strftime('%Y-%m-%d')
         week = t.isocalendar().week
         day = t.isocalendar().weekday
 
-        A = (self.baseline.loc[(MDC_without_covid,week,day)]/self.mean_residence_times.loc[MDC_without_covid]).values
-        covid_H_in = self.df_covid_H_in.loc[t_string]*f_UZG
-        A = np.insert(A,covid_idx,covid_H_in)
+        A = (self.baseline.loc[(MDC,week,day)]/self.mean_residence_times.loc[MDC]).values
 
         return A 
 
+from functools import lru_cache
+class get_covid_H():
+
+    def __init__(self, data):
+        self.data = data
+
+    def H_wrapper_func(self, t, states, param):
+        return self.__call__(t)
+
+    @lru_cache()
+    def __call__(self, t):
+        t = pd.to_datetime(t).round(freq='D')
+        try:
+            covid_H = self.data.loc[t]
+        except:
+            covid_H = 0
+        return covid_H 
+    
 #################
 ## Setup model ##
 #################
@@ -270,45 +280,43 @@ class get_A():
 def init_queuing_model(start_date):
     # Define model parameters, initial states and coordinates
     gamma =  mean_residence_times.loc[MDC_sim].values
-    epsilon = np.ones(len(MDC_sim))*0.01
-    epsilon[np.where(MDC_sim=='covid')]=0
+    epsilon = np.ones(len(MDC_sim))*0.1
     sigma = np.ones(len(MDC_sim))
-    sigma[np.where(MDC_sim=='covid')]=2
 
-    f_UZG = 0.5
+    f_UZG = 0.2
     X_tot = 1049
 
     t_string = start_date.strftime('%Y-%m-%d')
-    covid_H_in = df_covid_H_in.loc[t_string]*f_UZG
     covid_H = df_covid_H_tot.loc[t_string]*f_UZG
     H_init = hospitalization_baseline.loc[(MDC_sim,start_date.isocalendar().week,start_date.isocalendar().weekday)].values
-    H_init = np.insert(H_init,np.where(MDC_sim=='covid')[0],covid_H)
     A = H_init/mean_residence_times.loc[MDC_sim]
 
-    params={'A':A,'X_tot':X_tot, 'gamma':gamma, 'epsilon':epsilon, 'sigma':sigma,'MDC':MDC_sim,'f_UZG':f_UZG}
+    params={'A':A,'covid_H':covid_H,'X_tot':X_tot, 'gamma':gamma, 'epsilon':epsilon, 'sigma':sigma,'MDC':MDC_sim,'f_UZG':f_UZG}
 
     init_states = {'H':H_init}
     coordinates={'MDC':MDC_sim}
 
-    daily_hospitalizations_func = get_A(hospitalization_baseline,mean_residence_times,df_covid_H_in).A_wrapper_func
+    daily_hospitalizations_func = get_A(hospitalization_baseline,mean_residence_times).A_wrapper_func
+    covid_H_func = get_covid_H(df_covid_H_tot).H_wrapper_func
+
     # Initialize model
-    model = Queuing_model(init_states,params,coordinates,time_dependent_parameters={'A': daily_hospitalizations_func})
+    model = Queuing_model(init_states,params,coordinates,time_dependent_parameters={'A': daily_hospitalizations_func,'covid_H':covid_H_func})
 
     return model
 
 def normalize_model_output(out):
     out = out.copy()
-    multi_index = pd.MultiIndex.from_product([np.delete(MDC_sim,MDC_sim=='covid'),out.date.values])
+    multi_index = pd.MultiIndex.from_product([MDC_sim,out.date.values])
     baseline = pd.Series(index=multi_index)
     for idx,(disease,date) in enumerate(multi_index):
         baseline[idx] = hospitalization_baseline.loc[(disease,date.isocalendar().week,date.isocalendar().weekday)]
 
     if 'draws' in out.dims:
-        for disease in np.delete(MDC_sim,MDC_sim=='covid'):
+        for disease in MDC_sim:
             for draw in out.draws:
                 out.sel(MDC=disease,draws=draw)['H'][:]=out.sel(MDC=disease,draws=draw)['H']/baseline.loc[disease]
     else:
-        for disease in np.delete(MDC_sim,MDC_sim=='covid'):
+        for disease in MDC_sim:
             out.sel(MDC=disease)['H'][:]=out.sel(MDC=disease)['H']/baseline.loc[disease]
     
     return out
@@ -359,7 +367,7 @@ if __name__ == '__main__':
         axs[idx+1].axhline(y = 1, color = 'r', linestyle = 'dashed', alpha=0.5) 
 
     #plt.subplots_adjust(hspace=0.5)
-    #plt.show()
+    plt.show()
     fig.tight_layout()
     fig.savefig(os.path.join(fig_path,str(identifier)+'_init_condition.pdf'))
     plt.close()
@@ -380,9 +388,7 @@ if __name__ == '__main__':
     bounds = [(1*10**-10,1),(1*10**-10,1),(1*10**-10,10)]
 
     # Define dataset
-    covid_idx = int(np.where(MDC_sim=='covid')[0])
-    MDC_sim_without_covid = np.delete(MDC_sim,covid_idx)
-    data=[hospitalizations.loc[start_date:end_date,MDC_sim_without_covid].to_frame(),]
+    data=[hospitalizations.loc[start_date:end_date,MDC_sim].to_frame(),]
     states = ["H",]
     # Setup likelihood functions and arguments
     log_likelihood_fnc = [ll_poisson,]
@@ -398,15 +404,15 @@ if __name__ == '__main__':
     objective_function = log_posterior_probability(model,pars,bounds,data,states,
                                         log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
-    # theta = pso.optimize(objective_function, swarmsize=3, max_iter=1, processes=processes, debug=True,kwargs={'simulation_kwargs':{'tau': 1}})[0]
-    theta = np.array([])
-    for param in pars:
-        theta = np.append(theta,model.parameters[param])
+    theta = pso.optimize(objective_function, swarmsize=30, max_iter=n_nm, processes=processes, debug=True,kwargs={'simulation_kwargs':{'tau': 1}})[0]
+    #theta = np.array([])
+    #for param in pars:
+    #    theta = np.append(theta,model.parameters[param])
 
     print('Nelder-mead')
     # Nelder-mead
-    # step = len(theta)*[0.5,]
-    # theta,_ = nelder_mead.optimize(objective_function, theta, step, processes=processes, max_iter=n_nm,kwargs={'simulation_kwargs':{'tau': 1}})
+    #step = len(theta)*[0.5,]
+    #theta,_ = nelder_mead.optimize(objective_function, theta, step, processes=processes, max_iter=n_nm,kwargs={'simulation_kwargs':{'tau': 1}})
 
     theta = np.where(theta==0,0.00001,theta)
 
@@ -416,7 +422,7 @@ if __name__ == '__main__':
     #print(pos)
     # Write some usefull settings to a pickle file (no pd.Timestamps or np.arrays allowed!)
     settings={'start_calibration': start_date.strftime("%Y-%m-%d"), 'end_calibration': end_date.strftime("%Y-%m-%d"), 'n_chains': nwalkers,
-                'labels': labels, 'parameters': pars, 'starting_estimate': list(theta),"MDC":MDC_sim}
+                'labels': labels, 'parameters': pars, 'starting_estimate': list(theta),"MDC":list(MDC_sim)}
     # Start calibration
     sys.stdout.flush()
     # Sample n_mcmc iterations
@@ -460,7 +466,8 @@ if __name__ == '__main__':
     ######################
 
     # Define dataset
-    data=hospitalizations_normalized.loc[start_date:end_date, MDC_plot]
+    data = hospitalizations.loc[start_date:end_date,MDC_plot]
+    #data=hospitalizations_normalized.loc[start_date:end_date, MDC_plot]
                 
     #-------------#
     # Nelder-Mead #
@@ -472,7 +479,7 @@ if __name__ == '__main__':
 
     # simulate model
     out_nm = model.sim([start_date, end_date],tau=1)
-    out_nm = normalize_model_output(out_nm)
+    #out_nm = normalize_model_output(out_nm)
     
     #------#
     # MCMC #
@@ -500,9 +507,9 @@ if __name__ == '__main__':
             return param_dict
 
         # Simulate model
-        N=2
+        N=20
         out_mcmc = model.sim([start_date, end_date], N=N, samples=samples_dict, draw_function=draw_fcn, processes=processes,tau=1)
-        out_mcmc = normalize_model_output(out_mcmc)
+        #out_mcmc = normalize_model_output(out_mcmc)
     
     ########
     # plot #

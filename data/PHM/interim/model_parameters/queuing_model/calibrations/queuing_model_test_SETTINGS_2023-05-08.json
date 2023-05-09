@@ -1,0 +1,1 @@
+{"start_calibration": "2020-08-01", "end_calibration": "2021-03-01", "n_chains": 90, "labels": ["$f_{UZG}$", "$\\epsilon$", "$\\sigma$"], "parameters": ["f_UZG", "epsilon", "sigma"], "starting_estimate": [1.0, 0.01, 0.01, 0.01, 0.01, 1.0, 1.0, 1.0, 1.0], "MDC": ["03", "04", "05", "06"], "calibrated_parameters_shapes": {"f_UZG": [1], "epsilon": [4], "sigma": [4]}}
