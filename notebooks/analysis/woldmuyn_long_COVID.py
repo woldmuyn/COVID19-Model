@@ -27,15 +27,15 @@ if __name__ == '__main__':
     ################################
 
     # Number of simulations
-    N=10
+    N=50
     # Number of neg. binomial draws/ simulation
-    K=20
+    K=10
     # Number of cpu's
     processes=int(mp.cpu_count()/2)
     # Number of age groups
     age_stratification_size=10
     # End of simulation
-    end_sim='2021-07-01'
+    end_sim='2021-12-31'
     # Confidence level used to visualise model fit
     conf_int=0.05
 
@@ -74,8 +74,8 @@ if __name__ == '__main__':
 
     print('\n4) Visualise results')
 
-    abs_dir = os.getcwd()
-    result_folder = '../../results/covid19_DTM/analysis/QALY/long_COVID'
+    abs_dir = os.path.dirname(__file__)
+    result_folder = os.path.join(abs_dir,'../../results/covid19_DTM/analysis/QALY/long_COVID')
 
     label_font = font_manager.FontProperties(family='CMU Sans Serif',
                                     style='normal', 
@@ -113,10 +113,10 @@ if __name__ == '__main__':
         ax.legend(prop=legend_font) 
         ax.set_ylabel('QALYs lost',font=label_font)
         ax.set_xlabel('age groups',font=label_font)
-        ax.set_ylim([0,80000])
+        ax.set_ylim([0,180000])
         ax.tick_params(axis='both', which='major', labelsize=8)
         fig.tight_layout()
-        fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_per_age_group_{scenario}.png'), dpi=600,bbox_inches='tight')
+        fig.savefig(os.path.join(result_folder,f'QALY_losses_per_age_group_{scenario}.png'), dpi=600,bbox_inches='tight')
 
     # summarise results in table
     index = pd.Index(age_group_labels+['Total'])
@@ -137,7 +137,7 @@ if __name__ == '__main__':
             lower = np.quantile(out_slice,0.025)
             upper = np.quantile(out_slice,0.975)
 
-            QALY_table[column][age_group_label] = f'{mean:.0f} ({sd:.0f})'
+            QALY_table[column][age_group_label] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
             
     # Total QALY per hospitalisation group        
     for column in ['Non-hospitalised (no AD)', 'Non-hospitalised (AD)', 'Cohort', 'ICU', 'Deaths']:
@@ -152,7 +152,7 @@ if __name__ == '__main__':
         lower = np.quantile(out_slice,0.025)
         upper = np.quantile(out_slice,0.975)
 
-        QALY_table[column]['Total'] = f'{mean:.0f} ({sd:.0f})'
+        QALY_table[column]['Total'] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
 
     # Total QALY per age group
     for total_label,out in zip(['Total (no AD)', 'Total (AD)'],[out_no_AD,out_AD]):
@@ -168,13 +168,13 @@ if __name__ == '__main__':
             lower = np.quantile(total_per_age_group,0.025)
             upper = np.quantile(total_per_age_group,0.975)
 
-            QALY_table[total_label][age_group_label] = f'{mean:.0f} ({sd:.0f})'
+            QALY_table[total_label][age_group_label] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
         
         mean = total.mean()
         sd = np.std(total)
         lower = np.quantile(total,0.025)
         upper = np.quantile(total,0.975)
         
-        QALY_table[total_label]['Total'] = f'{mean:.0f} ({sd:.0f})'
+        QALY_table[total_label]['Total'] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
 
-    QALY_table.to_csv(os.path.join(abs_dir,result_folder,'QALY_table.csv'))
+    QALY_table.to_csv(os.path.join(result_folder,'QALY_table.csv'))

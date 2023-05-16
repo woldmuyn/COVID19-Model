@@ -293,14 +293,14 @@ print('\n(3) Fit exponential curve to QoL scores\n')
 QoL_Belgium_func = Life_table.QoL_Belgium_func
 
 # visualise fit
-fig,ax = plt.subplots(figsize=(5,3))
+fig,ax = plt.subplots(figsize=(3,3))
 for index in QoL_Belgium.index:
     left = index.left
     right = index.right
     w = right-left
     ax.bar(left+w/2,QoL_Belgium[index],w-1,color='grey',alpha=0.5,label='data')
-ax.plot(QoL_Belgium_func(LE_table.index.values),label='fit',color='black')
-ax.set_xlabel('Age',font=label_font)
+ax.plot(QoL_Belgium_func(LE_table.index.values),label='fit',color='black',linewidth=1)
+ax.set_xlabel('Age (years)',font=label_font)
 ax.set_ylabel('QoL Belgium',font=label_font)
 ax.tick_params(axis='both', which='major', labelsize=8)
 ax.set_ylim([0.5, 0.9])
@@ -402,7 +402,7 @@ for ax,hospitalisation in zip(axs,hospitalisation_groups):
     ax.fill_between(LE_table.index.values,lower,upper,alpha=0.20, color=palette_colors[color_dict[hospitalisation]])
     
     ax.grid(False)
-    ax.set_xlabel('Age when infected',font=label_font)
+    ax.set_xlabel('Age when infected (years)',font=label_font)
     ax.tick_params(axis='both', which='major', labelsize=8)
     ax.set_title(hospitalisation,font=label_font)
 
@@ -412,10 +412,10 @@ fig.savefig(os.path.join(abs_dir,fig_result_folder,f'average_QALY_losses_per_age
 
 # QALY losses due COVID death
 fig,ax = plt.subplots(figsize=(5,3))
-ax.plot(Life_table.compute_QALY_D_x(r=0),color=palette_colors['black'],label=r'$r=0\%$')
-ax.plot(Life_table.compute_QALY_D_x(r=0.03),color=palette_colors['black'],linestyle=':',label=r'$r=3\%$')
+ax.plot(Life_table.compute_QALY_D_x(r=0),color=palette_colors['black'],label=r'$r=0\%$',linewidth=2)
+ax.plot(Life_table.compute_QALY_D_x(r=0.03),color=palette_colors['black'],linestyle=':',label=r'$r=3\%$',linewidth=2)
 ax.grid(False)
-ax.set_xlabel('age',font=label_font)
+ax.set_xlabel('age (years)',font=label_font)
 ax.set_ylabel(r'$QALY_D$',font=label_font)
 ax.tick_params(axis='both', which='major', labelsize=8)
 ax.legend(prop=legend_font)
@@ -423,11 +423,11 @@ fig.tight_layout()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'QALY_D.png'),dpi=600,bbox_inches='tight')
 
 # Life expectancy
-fig,ax = plt.subplots(figsize=(5,3))
-ax.plot(LE_table,'black')
+fig,ax = plt.subplots(figsize=(3,3))
+ax.plot(LE_table,'black',linewidth=1.5)
 ax.grid(False)
-ax.set_ylabel('Life expectancy',font=label_font)
-ax.set_xlabel('age',font=label_font)
+ax.set_ylabel('Life expectancy (years)',font=label_font)
+ax.set_xlabel('age (years)',font=label_font)
 ax.tick_params(axis='both', which='major', labelsize=8)
 fig.tight_layout()
-fig.savefig(os.path.join(os.getcwd(),'../../results/covid19_DTM/preprocessing/QALY_model/long_COVID/','LE.png'),dpi=600,bbox_inches='tight')
+fig.savefig(os.path.join(abs_dir,fig_result_folder,'LE.png'),dpi=600,bbox_inches='tight')
